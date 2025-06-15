@@ -14,29 +14,52 @@ const font = "Trebuchet MS"
 const yAxisX = padding + arrowWidth / 2
 const yAxisLimit = padding + arrowLength
 const xAxisY = innerHeight - padding - arrowWidth / 2
-const xAxisLimit = innerWidth - padding - arrowLength
+let xAxisLimit = innerWidth - padding - arrowLength
 const unit = (xAxisY - yAxisLimit) / (yMarkCount + 1)
-const xMarkCount = Math.floor((xAxisLimit - yAxisX) / unit) - 1
+let xMarkCount = Math.floor((xAxisLimit - yAxisX) / unit) - 1
 const A = [11, 9, "A"]
 const B = [22, 6, "B"]
 const C = [16, 14, "C"]
-const a = Math.hypot(A[0] - C[0], A[1] - C[1])
-const b = Math.hypot(B[0] - C[0], B[1] - C[1])
+const a = calcDistance(A, C)
+const b = calcDistance(B, C)
+const d = calcDistance(A, B)
+const alpha = calcAngle(a, d, b)
+const beta = calcAngle(b, d, a)
+const dA = Math.cos(alpha) * a
+const dB = d - dA
+const D = [A[0] + (B[0] - A[0]) * (dA / d), A[1] + (B[1] - A[1]) * (dA / d), "D"]
+console.log({d, dA, dB})
 
 document.body.append(canvas)
-updateSize()
 
-window.onresize = updateSize
+window.onresize = render
 
-drawAxes()
-drawPoint(...A)
-drawPoint(...B)
-drawPoint(...C, "top")
-drawLine(A[0], A[1], C[0], C[1])
-drawLine(B[0], B[1], C[0], C[1])
-drawLine(A[0], A[1], B[0], B[1], 0.5)
-drawCircle(A[0], A[1], a, 0.5)
-drawCircle(B[0], B[1], b, 0.5)
+render()
+
+function render() {
+    xMarkCount = Math.floor((xAxisLimit - yAxisX) / unit) - 1
+    xAxisLimit = innerWidth - padding - arrowLength
+    updateSize()
+    drawAxes()
+    drawPoint(...A)
+    drawPoint(...B)
+    drawPoint(...C, "top")
+    drawPoint(...D)
+    drawSegment(A, C)
+    drawSegment(B, C)
+    drawSegment(A, B, 0.5)
+    drawSegment(C, D, 0.5)
+    drawCircle(A[0], A[1], a, 0.5)
+    drawCircle(B[0], B[1], b, 0.5)
+}
+
+function calcDistance([x1, y1], [x2, y2]) {
+    return Math.hypot(x1 - x2, y1 - y2)
+}
+
+function calcAngle(adj1, adj2, opp) {
+    return Math.acos((adj1**2 + adj2**2 - opp**2) / (2 * adj1 * adj2))
+}
 
 function drawCircle(X, Y, R, width = lineWidth) {
     ctx.beginPath()
@@ -51,6 +74,10 @@ function drawLine(X1, Y1, X2, Y2, width = lineWidth) {
     ctx.lineTo(getX(X2), getY(Y2))
     ctx.lineWidth = width
     ctx.stroke()
+}
+
+function drawSegment([X1, Y1], [X2, Y2], width = lineWidth) {
+    drawLine(X1, Y1, X2, Y2, width)
 }
 
 function updateSize() {
