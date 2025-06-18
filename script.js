@@ -1,4 +1,5 @@
-const baseLineDict = { top: "bottom", bottom: "top"}
+let showGeometry = false
+const baseLineDict = { top: "bottom", bottom: "top" }
 const canvas = document.createElement("canvas")
 const ctx = canvas.getContext("2d")
 const padding = 30
@@ -22,35 +23,69 @@ const B = [22, 6, "B"]
 const C = [16, 14, "C"]
 const a = calcDistance(A, C)
 const b = calcDistance(B, C)
-const d = calcDistance(A, B)
-const alpha = calcAngle(a, d, b)
-const beta = calcAngle(b, d, a)
-const dA = Math.cos(alpha) * a
-const dB = d - dA
-const D = [A[0] + (B[0] - A[0]) * (dA / d), A[1] + (B[1] - A[1]) * (dA / d), "D"]
-console.log({d, dA, dB})
 
 document.body.append(canvas)
 
 window.onresize = render
+window.onmousedown = () => {
+    window.onmousemove = update
+}
+window.onmouseup = () => {
+    window.onmousemove = null
+}
+
+window.onclick = e => {
+    if (!e.shiftKey) return
+    showGeometry = !showGeometry
+    render()
+}
 
 render()
 
 function render() {
+    const d = calcDistance(A, B)
+    const alpha = calcAngle(a, d, b)
+    const beta = calcAngle(b, d, a)
+    const gamma = calcAngle(a, b, d)
+    const dA = Math.cos(alpha) * a
+    const D = [A[0] + (B[0] - A[0]) * (dA / d), A[1] + (B[1] - A[1]) * (dA / d), "D"]
+    const c = Math.sin(alpha) * a
+
+    if (B[0] > A[0]) {
+        C[1] = c * (D[0] - A[0]) / dA + D[1]
+        C[0] = D[0] - c * (D[1] - A[1]) / dA
+    } else {
+        C[1] = D[1] - c * (D[0] - A[0]) / dA
+        C[0] = D[0] + c * (D[1] - A[1]) / dA
+    }
+    console.log({ alpha, beta, gamma })
+
     xMarkCount = Math.floor((xAxisLimit - yAxisX) / unit) - 1
     xAxisLimit = innerWidth - padding - arrowLength
     updateSize()
     drawAxes()
-    drawPoint(...A)
-    drawPoint(...B)
-    drawPoint(...C, "top")
-    drawPoint(...D)
     drawSegment(A, C)
     drawSegment(B, C)
-    drawSegment(A, B, 0.5)
-    drawSegment(C, D, 0.5)
-    drawCircle(A[0], A[1], a, 0.5)
-    drawCircle(B[0], B[1], b, 0.5)
+    if (showGeometry) {
+        drawPoint(...A)
+        drawPoint(...B)
+        drawPoint(...C, "top")
+        drawPoint(...D)
+        drawSegment(A, B, 0.5)
+        drawSegment(C, D, 0.5)
+        drawCircle(A[0], A[1], a, 0.5)
+        drawCircle(B[0], B[1], b, 0.5)
+    }
+}
+
+function update(e) {
+    B[0] = getRelativeX(e.x)
+    B[1] = getRelativeY(e.y)
+    const d = calcDistance(A, B)
+
+    if (d > a + b || d < Math.abs(a - b)) return
+
+    render()
 }
 
 function calcDistance([x1, y1], [x2, y2]) {
@@ -58,20 +93,20 @@ function calcDistance([x1, y1], [x2, y2]) {
 }
 
 function calcAngle(adj1, adj2, opp) {
-    return Math.acos((adj1**2 + adj2**2 - opp**2) / (2 * adj1 * adj2))
+    return Math.acos((adj1 ** 2 + adj2 ** 2 - opp ** 2) / (2 * adj1 * adj2))
 }
 
 function drawCircle(X, Y, R, width = lineWidth) {
     ctx.beginPath()
-    ctx.arc(getX(X), getY(Y), getDistance(R), 0, 7)
+    ctx.arc(getRealX(X), getRealY(Y), getDistance(R), 0, 7)
     ctx.lineWidth = width
     ctx.stroke()
 }
 
 function drawLine(X1, Y1, X2, Y2, width = lineWidth) {
     ctx.beginPath()
-    ctx.moveTo(getX(X1), getY(Y1))
-    ctx.lineTo(getX(X2), getY(Y2))
+    ctx.moveTo(getRealX(X1), getRealY(Y1))
+    ctx.lineTo(getRealX(X2), getRealY(Y2))
     ctx.lineWidth = width
     ctx.stroke()
 }
@@ -110,7 +145,7 @@ function drawAxes() {
         ctx.textBaseline = "middle"
         ctx.fillText(yMarkCount + 1 - i, yAxisX - markLength / 2 - fontSize / 4, yAxisLimit + unit * i)
     }
-    
+
     ctx.beginPath()
     ctx.moveTo(xAxisLimit, innerHeight - padding - arrowWidth)
     ctx.lineTo(innerWidth - padding, xAxisY)
@@ -136,16 +171,16 @@ function drawAxes() {
 }
 
 function drawPoint(X, Y, label, side = "bottom") {
-    const x = getX(X) 
-    const y = getY(Y) 
-    
+    const x = getRealX(X)
+    const y = getRealY(Y)
+
     ctx.beginPath()
     ctx.arc(x, y, pointSize / 2, 0, 7)
     ctx.fill()
 
     ctx.font = fontSize * 2 + "px " + font
     ctx.textAlign = "center"
-    ctx.textBaseline = baseLineDict[side] 
+    ctx.textBaseline = baseLineDict[side]
     if (side === "bottom") {
         ctx.fillText(label, x, y + fontSize)
     } else {
@@ -154,12 +189,20 @@ function drawPoint(X, Y, label, side = "bottom") {
 
 }
 
-function getX(X) {
+function getRealX(X) {
     return yAxisX + unit * X
 }
 
-function getY(Y) {
+function getRelativeX(x) {
+    return (x - yAxisX) / unit
+}
+
+function getRealY(Y) {
     return xAxisY - unit * Y
+}
+
+function getRelativeY(y) {
+    return (xAxisY - y) / unit
 }
 
 function getDistance(D) {
